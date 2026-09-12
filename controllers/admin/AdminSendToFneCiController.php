@@ -20,13 +20,13 @@ class AdminSendToFneCiController extends ModuleAdminController
 
         $exists = (int)Db::getInstance()->getValue(
             "SELECT COUNT(*) FROM "._DB_PREFIX_."fne_log
-            WHERE id_order=".$id." AND type='INVOICE'"
+            WHERE id_order=".$idOrder." AND type='INVOICE'"
         );
 
         if ($exists > 0) {
             // Bloque toute double facturation FNE
             Tools::redirectAdmin($this->context->link->getAdminLink(
-                'AdminOrders', true, [], ['id_order'=>$id,'vieworder'=>1]
+                'AdminOrders', true, [], ['id_order'=>$idOrder,'vieworder'=>1]
             ));
         }
         //../ 🔒 Anti-doublon FNE
