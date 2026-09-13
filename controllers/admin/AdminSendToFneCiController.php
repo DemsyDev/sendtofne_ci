@@ -66,15 +66,16 @@ class AdminSendToFneCiController extends ModuleAdminController
         $idOrder = (int)$order->id;
 
         /*
-         * Vérifie si une opération INVOICE existe déjà
+         * Vérifie si une opération INVOICE REUSSIE existe déjà
          * dans l'historique FNE pour cette commande.
          *
-         * La présence d'une entrée INVOICE entraîne actuellement
-         * le blocage d'une nouvelle tentative d'envoi.
+         * (UNIQUEMENT si succès)
          */
         $exists = (int)Db::getInstance()->getValue(
             "SELECT COUNT(*) FROM "._DB_PREFIX_."fne_log
-            WHERE id_order=".$idOrder." AND type='INVOICE'"
+            WHERE id_order=".$idOrder." 
+            AND type='INVOICE' 
+            AND response_code IN('200','201')"
         );
 
         if ($exists > 0) {
@@ -107,6 +108,7 @@ class AdminSendToFneCiController extends ModuleAdminController
          * Décodage du corps JSON retourné par l'API FNE.
          */
         $json = json_decode($res['body'], true);
+        // var_dump($json);die();
 
         /* Bloc d’insertion log facture */
         /*
@@ -126,19 +128,20 @@ class AdminSendToFneCiController extends ModuleAdminController
         ]);
 
         /*
-         * Si l'API retourne actuellement le code HTTP 200,
+         * Si l'API retourne actuellement le code HTTP 200 ou 201,
          * la commande passe à l'état PrestaShop « Envoyé à la FNE ».
          */
-        if ($res['code']==200) {
+        // if ($res['code']==200) {
+        if (in_array((string)$res['code'], ['200', '201'], true)) {
             $state = (int)Configuration::get('FNE_ORDER_STATE_ID');
             $h = new OrderHistory();
-            $h->id_order=$id;
+            $h->id_order=$idOrder;
             $h->changeIdOrderState($state,$order);
             $h->add();
         }
 
         /* Retour vers la page de détail de la commande. */
-        Tools::redirectAdmin($this->context->link->getAdminLink('AdminOrders',true,[],['id_order'=>$id,'vieworder'=>1]));
+        Tools::redirectAdmin($this->context->link->getAdminLink('AdminOrders',true,[],['id_order'=>$idOrder,'vieworder'=>1]));
     }
 }
 ?>
