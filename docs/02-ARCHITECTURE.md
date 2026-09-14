@@ -80,3 +80,48 @@ Vérification du code HTTP
 Cette séquence permet de conserver dans fne_log la trace de l'opération
 avant de modifier l'état de la commande.
 
+## Principe d'installation et d'évolution
+
+La création des états FNE relève de la responsabilité de FneInstaller.
+
+La classe principale du module ne doit pas contenir directement toute la
+logique de création des états.
+
+À terme, l'architecture doit suivre le principe :
+Sendtofne_ci
+      │
+      └── FneInstaller
+             ├── installation
+             ├── désinstallation
+             ├── base de données
+             ├── configuration
+             ├── hooks
+             └── états de commande
+
+L'ajout du deuxième état FNE sur une installation existante doit être réalisé
+par une procédure de migration/upgrade.
+
+Une évolution du module ne doit pas nécessiter la désinstallation puis la
+réinstallation du module.
+
+En particulier, l'ajout ou la modification d'un état de commande ne doit pas
+entraîner la suppression de fne_log.
+
+## Conservation de l'historique FNE
+
+La table fne_log constitue une donnée historique durable du module.
+
+Elle n'est pas soumise à une contrainte de clé étrangère vers
+ps_orders.
+
+Le champ : *id_order* constitue une référence historique vers la commande PrestaShop concernée.
+
+Cette conception permet notamment :
+
+* de conserver l'historique FNE même après le nettoyage de commandes anciennes ;
+* de conserver les données FNE indépendamment des données commerciales opérationnelles ;
+* de restaurer ou importer l'historique FNE indépendamment d'une sauvegarde de commandes donnée ;
+* d'éviter qu'une contrainte SQL empêche la maintenance ou la restauration sélective de la base.
+
+L'historique FNE ne doit donc pas être considéré comme une simple donnée
+temporaire liée au cycle de vie de ps_orders.
