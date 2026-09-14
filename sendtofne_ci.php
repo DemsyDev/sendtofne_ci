@@ -20,6 +20,7 @@ class Sendtofne_ci extends Module
             && $this->registerHook('displayAdminOrder')
             && $this->installDb()
             && $this->installOrderState();
+            // && $this->installFneRefundOrderState();
     }
 
     private function installDb()
