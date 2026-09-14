@@ -90,6 +90,7 @@ class Sendtofne_ci extends Module
         );
 
 
+        $config = parse_ini_file( dirname(__FILE__).'/config/config.ini' );
 
         // 🔹 Assignation Smarty (CLAIRE et STABLE)
         $this->context->smarty->assign([
@@ -105,6 +106,15 @@ class Sendtofne_ci extends Module
             // 'already_refunded'  => ($alreadyRefunded > 0),
             'canRefund' => ($canRefund > 0),
             'already_refunded' => ($alreadyRefunded > 0),
+
+            /*
+            * Valeurs par défaut provenant de config.ini.
+            * Elles servent uniquement à préselectionner les
+            * valeurs dans l'interface d'émission de facture.
+            */
+            'fne_default_payment_method' => $config['PAYMENT_METHOD'],
+
+            'fne_default_template' => $config['TEMPLATE'],
         ]);
 
         return

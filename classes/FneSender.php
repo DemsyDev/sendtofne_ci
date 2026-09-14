@@ -1,10 +1,47 @@
 <?php
+/**
+ * Envoi des factures et avoirs vers l'API FNE de la DGI Côte d'Ivoire.
+ *
+ * Cette classe constitue la couche technique de communication
+ * entre PrestaShop et l'API FNE.
+ *
+ * Les paramètres PAYMENT_METHOD et TEMPLATE présents dans config.ini
+ * servent de valeurs par défaut pour l'interface d'émission de facture.
+ *
+ * Le PAYMENT_METHOD et le TEMPLATE effectivement utilisés pour une
+ * facture sont désormais fournis explicitement à sendInvoice().
+ *
+ * La génération d'un avoir reste indépendante de ces paramètres.
+ */
 class FneSender
 {
+    /**
+     * Configuration technique du module.
+     *
+     * @var array
+     */
     private $cfg;
+
+    /**
+     * URL de base de l'API FNE.
+     *
+     * @var string
+     */
     private $baseUrl;
+
+    /**
+     * Clé d'authentification de l'API FNE.
+     *
+     * @var string
+     */
     private $apiKey;
 
+    /**
+     * Initialise le client FNE.
+     *
+     * Les valeurs PAYMENT_METHOD et TEMPLATE sont conservées
+     * dans la configuration uniquement comme valeurs par défaut.
+     */
     public function __construct()
     {
         $this->cfg = parse_ini_file(dirname(__FILE__).'/../config/config.ini');
@@ -12,17 +49,49 @@ class FneSender
         $this->apiKey = trim($this->cfg['FNE_API_KEY']);
     }
 
-    public function sendInvoice(Order $order)
+    /**
+     * Envoie une facture à la FNE.
+     *
+     * Le PAYMENT_METHOD et le TEMPLATE sont déterminés
+     * par l'interface d'émission de la facture.
+     *
+     * @param Order  $order         Commande PrestaShop.
+     * @param string $paymentMethod Mode de paiement FNE.
+     * @param string $template      Template FNE.
+     *
+     * @return array
+     */
+    public function sendInvoice(Order $order, $paymentMethod, $template)
     {
-        return $this->call('/external/invoices/sign', $this->buildInvoicePayload($order));
+        return $this->call('/external/invoices/sign', $this->buildInvoicePayload($order, $paymentMethod, $template));
     }
 
+    /**
+     * Envoie un avoir à la FNE.
+     *
+     * Cette opération est indépendante du PAYMENT_METHOD
+     * et du TEMPLATE utilisés lors de l'émission de la facture.
+     *
+     * @param string $invoiceId ID technique de la facture FNE.
+     * @param array  $items     Lignes FNE à annuler.
+     *
+     * @return array
+     */
     public function sendRefund($invoiceId, $items = [])
     {
         return $this->call('/external/invoices/'.$invoiceId.'/refund', ['items'=>$items]);
     }
 
-    private function buildInvoicePayload(Order $order)
+    /**
+     * Construit le payload d'une facture FNE.
+     *
+     * @param Order  $order         Commande PrestaShop.
+     * @param string $paymentMethod Mode de paiement FNE sélectionné.
+     * @param string $template      Template FNE sélectionné.
+     *
+     * @return array
+     */
+    private function buildInvoicePayload(Order $order, $paymentMethod, $template)
     {
         $customer = new Customer($order->id_customer);
 
@@ -59,7 +128,17 @@ class FneSender
 
         // 2️⃣ Société sur l’adresse de facturation
         if (Validate::isLoadedObject($invoiceAddress) && !empty($invoiceAddress->company)) {
-            $clientCompanyName = trim($invoiceAddress->company);
+
+            /*
+             * Pour éviter que PDV UnivPat soit affiché comme
+             * nom du client sur le PDF FNE.
+             */
+            if ( trim($invoiceAddress->company) == 'PDV UnivPat') {
+                $clientCompanyName = trim($customer->firstname.' '.$customer->lastname);
+            } else {
+                $clientCompanyName = trim($invoiceAddress->company);
+            }
+            // $clientCompanyName = trim($invoiceAddress->company);
         }
 
         // 1️⃣ Société sur la fiche client (priorité maximale)
@@ -106,8 +185,12 @@ class FneSender
 
         return [
             "invoiceType"=>"sale",
-            "paymentMethod"=>$this->cfg['PAYMENT_METHOD'],
-            "template"=>$this->cfg['TEMPLATE'],
+            // "paymentMethod"=>$this->cfg['PAYMENT_METHOD'],
+            // "template"=>$this->cfg['TEMPLATE'],
+            
+            /* Ces deux valeurs proviennent maintenant de l'interface d'émission de la facture. */
+            'paymentMethod' => $paymentMethod,
+            'template' => $template,
             "isRne"=>false,
             "rne"=>null,
             "clientNcc"=> $ncc,
@@ -128,6 +211,14 @@ class FneSender
         ];
     }
     
+    /**
+     * Effectue un appel HTTP POST vers l'API FNE.
+     *
+     * @param string $endpoint Endpoint relatif de l'API.
+     * @param array  $payload  Données JSON à transmettre.
+     *
+     * @return array
+     */
     private function call($endpoint, $payload)
     {
         $ch = curl_init($this->baseUrl.$endpoint);
@@ -193,6 +284,13 @@ class FneSender
         ];
     }
 
+    /**
+     * Récupère les détails d'une facture FNE.
+     *
+     * @param string $invoiceId ID technique FNE.
+     *
+     * @return array
+     */
     public function getInvoiceDetails($invoiceId)
     {
         // ⚠️ invoiceId = ID technique (UUID), PAS la référence FNE
