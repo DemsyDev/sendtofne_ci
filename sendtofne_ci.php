@@ -92,6 +92,44 @@ class Sendtofne_ci extends Module
 
         $config = parse_ini_file( dirname(__FILE__).'/config/config.ini' );
 
+        // >>> AJOUT POINT NCC
+        /**
+         * Récupère le message d'erreur temporaire généré lors
+         * d'une tentative d'émission FNE.
+         *
+         * Le message est affiché uniquement pour la commande
+         * concernée par l'erreur.
+         *
+         * Après lecture, le message et son identifiant de commande
+         * sont supprimés du cookie afin qu'ils ne soient pas
+         * réaffichés lors d'une prochaine consultation.
+         */
+        $fneError = '';
+
+        if (!empty($this->context->cookie->fne_error)) {
+
+            $fneErrorOrderId = (int)$this->context->cookie->fne_error_order_id;
+
+            if ($fneErrorOrderId === $idOrder) {
+                $fneError = $this->context->cookie->fne_error;
+            }
+
+            // unset($this->context->cookie->fne_error);
+            // unset($this->context->cookie->fne_error_order_id);
+
+            // >>> AJOUT POINT NCC - suppression persistante du flash
+            unset($this->context->cookie->fne_error);
+            unset($this->context->cookie->fne_error_order_id);
+
+            /*
+            * Force l'écriture du cookie afin que la suppression
+            * soit effectivement répercutée dans le navigateur.
+            */
+            $this->context->cookie->write();
+            // <<< FIN AJOUT POINT NCC
+        }
+        // <<< FIN AJOUT POINT NCC
+
         // 🔹 Assignation Smarty (CLAIRE et STABLE)
         $this->context->smarty->assign([
             'id_order'          => $idOrder,
@@ -115,10 +153,13 @@ class Sendtofne_ci extends Module
             'fne_default_payment_method' => $config['PAYMENT_METHOD'],
 
             'fne_default_template' => $config['TEMPLATE'],
+
+            'fne_error' => $fneError,
         ]);
 
         return
-            $this->display(__FILE__, 'views/templates/admin/button.tpl')
+            $this->display(__FILE__, 'views/templates/admin/alert.tpl')
+            . $this->display(__FILE__, 'views/templates/admin/button.tpl')
             . $this->display(__FILE__, 'views/templates/admin/history.tpl');
     }
 

@@ -153,6 +153,56 @@ class AdminSendToFneCiController extends ModuleAdminController
         }
 
         /*
+        * ========================================================
+        * VALIDATION NCC POUR TEMPLATE B2B
+        * ========================================================
+        */
+
+        // >>> AJOUT POINT NCC
+        /**
+         * Le NCC du client est obligatoire lorsque le template FNE
+         * sélectionné est B2B.
+         *
+         * Pour les templates B2C, B2F et B2G, l'absence de NCC
+         * est autorisée par l'API FNE.
+         */
+        if ($template === 'B2B') {
+
+            $customer = new Customer((int)$order->id_customer);
+
+            if (!Validate::isLoadedObject($customer)) {
+                $this->context->cookie->fne_error = 'Client invalide.';
+
+                $this->context->cookie->fne_error_order_id = $idOrder;
+                
+                Tools::redirectAdmin(
+                    $this->context->link->getAdminLink('AdminOrders', true, [],
+                        [
+                            'id_order' => $idOrder,
+                            'vieworder' => 1
+                        ]
+                    )
+                );
+            }
+
+            if (empty(trim($customer->siret))) {
+                $this->context->cookie->fne_error = 'Impossible d’envoyer la facture FNE en B2B : le NCC du client est absent.';
+
+                $this->context->cookie->fne_error_order_id = $idOrder;
+
+                Tools::redirectAdmin(
+                    $this->context->link->getAdminLink('AdminOrders', true, [],
+                        [
+                            'id_order' => $idOrder,
+                            'vieworder' => 1
+                        ]
+                    )
+                );
+            }
+        }
+        // <<< FIN AJOUT POINT NCC
+
+        /*
          * ========================================================
          * ENVOI FNE
          * ========================================================

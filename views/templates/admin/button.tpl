@@ -53,19 +53,19 @@
 
             <select name="fne_template" id="fne_template" class="form-control" style="display:inline-block; width:auto;" >
                 <option value="B2B" {if $fne_default_template == 'B2B'}selected{/if} >
-                    B2B
-                </option>
-
-                <option value="B2F" {if $fne_default_template == 'B2F'}selected{/if} >
-                    B2F
-                </option>
-
-                <option value="B2G" {if $fne_default_template == 'B2G'}selected{/if} >
-                    B2G
+                    B2B (Entreprise)
                 </option>
 
                 <option value="B2C" {if $fne_default_template == 'B2C'}selected{/if} >
-                    B2C
+                    B2C (Consommateur final)
+                </option>
+
+                <option value="B2F" {if $fne_default_template == 'B2F'}selected{/if} >
+                    B2F (Client Internationnal)
+                </option>
+
+                <option value="B2G" {if $fne_default_template == 'B2G'}selected{/if} >
+                    B2G (Etat et collectivités)
                 </option>
             </select>
 

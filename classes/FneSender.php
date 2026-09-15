@@ -120,6 +120,103 @@ class FneSender
         // echo '</pre>';
         // die();
 
+        // $order = new Order("40494");
+        /** Diagnostic pour la remise */
+            /*
+            $order = new Order("36851");
+
+            $cartRules = $order->getCartRules();
+
+            echo '<pre>';
+
+            print_r($cartRules);
+
+            foreach ($cartRules as $cartRuleData) {
+                $cartRule = new CartRule((int)$cartRuleData['id_cart_rule']);
+
+                echo "\n==============================\n";
+                echo "CartRule ID : ".$cartRule->id."\n";
+                echo "Nom         : ".$cartRuleData['name']."\n";
+                echo "Valeur TTC  : ".$cartRuleData['value']."\n";
+                echo "Valeur HT   : ".$cartRuleData['value_tax_excl']."\n";
+                echo "Réduction % : ".$cartRule->reduction_percent."\n";
+                echo "Réduction montant : ".$cartRule->reduction_amount."\n";
+                echo "Réduction taxe : ".($cartRule->reduction_tax ? 'OUI' : 'NON')."\n";
+            }
+
+            echo '</pre>';
+            die;*/
+        // /** //.Diagnostic pour la remise */
+
+        /* Vérification de la cohérence Total Prestashop et FNE
+
+            $order = new Order(40494);
+
+            if (!Validate::isLoadedObject($order)) {
+                die('Commande invalide');
+            }
+
+            $products = $order->getProducts();
+
+            $totalFneLines = 0.0;
+
+            echo '<pre>';
+
+            echo "==============================\n";
+            echo "COHERENCE TOTAL PRODUITS / FNE\n";
+            echo "==============================\n\n";
+
+            echo "PrestaShop total_products : ";
+            var_dump((float)$order->total_products);
+
+            echo "\n";
+            echo "LIGNES DE COMMANDE\n";
+            echo "------------------------------\n";
+
+            foreach ($products as $p) {
+
+                $quantity = (float)$p['product_quantity'];
+                $unitPrice = (float)$p['unit_price_tax_excl'];
+
+                $lineTotal = $unitPrice * $quantity;
+
+                $totalFneLines += $lineTotal;
+
+                echo "\n";
+                echo "Produit       : ".$p['product_name']."\n";
+                echo "Référence     : ".$p['product_reference']."\n";
+                echo "Quantité      : ".$quantity."\n";
+                echo "Prix unitaire : ".$unitPrice." F\n";
+                echo "Total ligne   : ".$lineTotal." F\n";
+            }
+
+            echo "\n";
+            echo "==============================\n";
+            echo "RESULTAT\n";
+            echo "==============================\n";
+
+            echo "total_products PrestaShop : ".$order->total_products." F\n";
+            echo "Somme lignes FNE          : ".$totalFneLines." F\n";
+
+            $ecart = $totalFneLines - (float)$order->total_products;
+
+            echo "Ecart                      : ".$ecart." F\n";
+
+            echo "\n";
+
+            if (abs($ecart) < 0.01) {
+                echo "OK : COHERENCE CONFIRMEE\n";
+            } else {
+                echo "ATTENTION : ECART DETECTE\n";
+            }
+
+            echo '</pre>';
+
+            die;
+
+        */
+
+
         // SVO2.4 – Hiérarchie Société Client validée
         $invoiceAddress = new Address($order->id_address_invoice);
 
@@ -183,6 +280,28 @@ class FneSender
             ];
         }
 
+        // >>> AJOUT POINT 31
+        /**
+         * Calcule le taux de remise globale à transmettre
+         * à la FNE.
+         *
+         * Le champ "discount" du payload FNE est exprimé
+         * sous forme de pourcentage et est appliqué par la FNE
+         * au total avant remise.
+         *
+         * Le montant réellement remisé est récupéré depuis
+         * la commande PrestaShop via total_discounts.
+         *
+         * Les remises déjà intégrées dans le prix unitaire
+         * des lignes produits ne sont pas recalculées ici.
+         *
+         * @param Order $order Commande PrestaShop.
+         *
+         * @return float Taux de remise globale à transmettre à la FNE.
+         */
+        $discount = $this->getOrderFneDiscount($order);
+        // <<< FIN AJOUT POINT 31
+
         return [
             "invoiceType"=>"sale",
             // "paymentMethod"=>$this->cfg['PAYMENT_METHOD'],
@@ -207,9 +326,58 @@ class FneSender
             "foreignCurrencyRate"=>0,
             "items"=>$items,
             "customTaxes"=>[],
-            "discount"=>0
+            
+            // >>> AJOUT POINT 31
+            "discount"=>$discount
+            // <<< FIN AJOUT POINT 31
         ];
     }
+
+    // >>> AJOUT POINT 31
+    /**
+     * Calcule le taux de remise globale à transmettre
+     * à la FNE pour une commande PrestaShop.
+     *
+     * Le montant de remise est récupéré depuis
+     * total_discounts et rapporté à total_products.
+     *
+     * Formule :
+     *
+     *     total_discounts / total_products × 100
+     *
+     * Exemple :
+     *
+     *     total_products  = 24425
+     *     total_discounts = 4425
+     *
+     *     => 18.1167 %
+     *
+     * Cette méthode concerne uniquement la remise globale
+     * de la commande.
+     *
+     * Une remise directement appliquée au prix d'un produit
+     * par le POS est déjà intégrée dans unit_price_tax_excl
+     * et ne doit donc pas être appliquée une seconde fois
+     * au niveau de items[].discount.
+     *
+     * @param Order $order Commande PrestaShop.
+     *
+     * @return float Taux de remise globale.
+     */
+    private function getOrderFneDiscount(Order $order)
+    {
+        $totalProducts = (float)$order->total_products;
+        $totalDiscounts = (float)$order->total_discounts;
+
+        if ($totalProducts <= 0 || $totalDiscounts <= 0) {
+            return 0.0;
+        }
+
+        $discount = ($totalDiscounts / $totalProducts) * 100;
+
+        return round($discount, 4);
+    }
+    // <<< FIN AJOUT POINT 31
     
     /**
      * Effectue un appel HTTP POST vers l'API FNE.
