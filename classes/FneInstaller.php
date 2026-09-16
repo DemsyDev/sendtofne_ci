@@ -33,6 +33,22 @@ class FneInstaller
     }
 
     /**
+     * Installation complète
+     *
+     * @return bool
+     */
+    public function install()
+    {
+        return
+            $this->installDatabase()
+            && $this->installConfiguration()
+            && $this->installTabs()
+            && $this->installHooks()
+            && $this->installOrderState()
+            && $this->installFneRefundOrderState();
+    }
+
+    /**
      * Installe l'état de commande utilisé après
      * la génération réussie d'un avoir FNE.
      *
@@ -71,15 +87,33 @@ class FneInstaller
      */
     public function installFneRefundOrderState()
     {
-        if (Configuration::get('FNE_REFUND_ORDER_STATE_ID')) {
-            return true;
+        // Vérification réelle de l'OrderState configuré
+        $configuredStateId = (int)Configuration::get('FNE_REFUND_ORDER_STATE_ID');
+
+        if ($configuredStateId > 0) {
+
+            $existingState = new OrderState($configuredStateId);
+
+            if (Validate::isLoadedObject($existingState)) {
+                return true;
+            }
+
+            /*
+             * L'ID est enregistré dans la configuration,
+             * mais l'OrderState correspondant n'existe plus
+             * réellement dans ps_order_state.
+             *
+             * On poursuit donc l'installation afin de recréer
+             * un état valide.
+             */
+            Configuration::deleteByName('FNE_REFUND_ORDER_STATE_ID');
         }
+        // Vérification réelle de l'OrderState configuré
 
         $state = new OrderState();
 
         foreach (Language::getLanguages() as $lang) {
-            $state->name[$lang['id_lang']] =
-                'Envoyé vers FNE - Puis Avoir FNE : Annulée';
+            $state->name[$lang['id_lang']] = 'Envoyé vers FNE - Puis Avoir FNE : Annulée';
         }
 
         $state->color = '#2C3E50';
@@ -97,9 +131,6 @@ class FneInstaller
             return false;
         }
 
-        return (bool)Configuration::updateValue(
-            'FNE_REFUND_ORDER_STATE_ID',
-            (int)$state->id
-        );
+        return (bool)Configuration::updateValue('FNE_REFUND_ORDER_STATE_ID', (int)$state->id);
     }
 }
