@@ -556,5 +556,20 @@ class FneInstaller
         return $this->installTabs();
     }
 
+    /**
+     * Vérifie l'existence de l'état de commande dédié aux avoirs FNE
+     * et le crée si nécessaire.
+     *
+     * @return bool
+     */
+    public function ensureFneRefundOrderState()
+    {
+        // TEST TEMPORAIRE : simulation d'un échec de création.
+        // return false;
+
+        return $this->installFneRefundOrderState();
+
+    }
+
 
 }

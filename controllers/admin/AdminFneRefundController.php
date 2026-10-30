@@ -90,6 +90,54 @@ class AdminFneRefundController extends ModuleAdminController
             die('Impossible de créer un avoir sans lignes FNE');
         }
 
+        // >>> AJOUT POINT 9 : Vérification de l'état spécifique avant l'avoir FNE
+
+        require_once _PS_MODULE_DIR_.'sendtofne_ci/classes/FneInstaller.php';
+
+        $installer = new FneInstaller($this->module);
+
+        if (!$installer->ensureFneRefundOrderState()) {
+
+            $this->context->cookie->fne_error =
+                'Impossible de créer ou de vérifier l’état de commande dédié aux avoirs FNE. Aucun avoir n’a été envoyé.';
+
+            $this->context->cookie->fne_error_order_id = (int)$idOrder;
+
+            $this->context->cookie->write();
+
+            Tools::redirectAdmin($this->context->link->getAdminLink('AdminOrders', true, [],
+                [
+                    'id_order' => $idOrder,
+                    'vieworder' => 1,
+                ]
+            ));
+
+            return;
+        }
+
+        $stateId = (int)Configuration::get('FNE_REFUND_ORDER_STATE_ID');
+
+        if ($stateId <= 0) {
+
+            $this->context->cookie->fne_error =
+                'L’identifiant de l’état de commande dédié aux avoirs FNE est introuvable. Aucun avoir n’a été envoyé.';
+
+            $this->context->cookie->fne_error_order_id = (int)$idOrder;
+
+            $this->context->cookie->write();
+
+            Tools::redirectAdmin($this->context->link->getAdminLink('AdminOrders',true, [],
+                [
+                    'id_order' => $idOrder,
+                    'vieworder' => 1,
+                ]
+            ));
+
+            return;
+        }
+
+        // <<< FIN AJOUT POINT 9
+
         //$sender = new FneSender();
         // $res = $sender->sendRefund($invoiceId, $items);
         // Génération de l'avoir FNE
@@ -124,16 +172,25 @@ class AdminFneRefundController extends ModuleAdminController
          * FNE conformément au fonctionnement retenu par le module.
          */
         if (in_array((string)$res['code'], ['200', '201'], true)) {
-            $stateId = (int)Configuration::get('FNE_REFUND_ORDER_STATE_ID');
+            // Nous n'avons plus besoin de vérifier l'identifiant à cet endroit : il a déjà été vérifié avant l'appel à l'API.
+            // $stateId = (int)Configuration::get('FNE_REFUND_ORDER_STATE_ID');
 
-            if ($stateId > 0) {
-                $history = new OrderHistory();
-                $history->id_order = $idOrder;
+            // if ($stateId > 0) {
+            //     $history = new OrderHistory();
+            //     $history->id_order = $idOrder;
 
-                $history->changeIdOrderState($stateId, $order);
+            //     $history->changeIdOrderState($stateId, $order);
 
-                $history->add();
-            }
+            //     $history->add();
+            // }
+            // ../ // Nous n'avons plus besoin de vérifier l'identifiant... - A SUPPRIMER
+
+            $history = new OrderHistory();
+            $history->id_order = $idOrder;
+
+            $history->changeIdOrderState($stateId, $order);
+
+            $history->add();
         }
 
         Tools::redirectAdmin($this->context->link->getAdminLink(
