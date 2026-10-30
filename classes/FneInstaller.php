@@ -62,6 +62,76 @@ class FneInstaller
             && $this->installHooks();
     }
 
+    // >>> AJOUT POINT 22 — Désinstallation centralisée
+
+    /**
+     * Coordonne la désinstallation du module SendToFNE CI.
+     *
+     * Supprime les éléments d'interface appartenant au module
+     * et désenregistre le hook utilisé par celui-ci.
+     *
+     * Les données historiques de la table fne_log, les configurations
+     * identifiant les états FNE et les états de commande eux-mêmes
+     * sont conservés afin de préserver la traçabilité des opérations
+     * FNE et l'historique des commandes PrestaShop.
+     *
+     * @return bool
+     *         True si toutes les opérations de désinstallation
+     *         réussissent, false si une opération échoue.
+     */
+    public function uninstall()
+    {
+        return $this->uninstallTabs();
+            // && $this->uninstallHooks();
+    }
+
+    /**
+     * Supprime le Tab Back Office appartenant au module FNE.
+     *
+     * Seul le Tab AdminFneInvoiceStates est supprimé.
+     * Le Tab parent AdminUnivpat et les autres Tabs, notamment
+     * celui de la clôture de caisse, ne sont pas modifiés.
+     *
+     * Si le Tab FNE n'existe déjà plus, l'opération est considérée
+     * comme réussie.
+     *
+     * @return bool
+     *         True si le Tab a été supprimé ou n'existait pas,
+     *         false si sa suppression échoue.
+     */
+    protected function uninstallTabs()
+    {
+        $idTab = (int) Tab::getIdFromClassName('AdminFneInvoiceStates');
+
+        if (!$idTab) {
+            return true;
+        }
+
+        $tab = new Tab($idTab);
+
+        if (!Validate::isLoadedObject($tab)) {
+            return false;
+        }
+
+        return (bool) $tab->delete();
+    }
+
+    /**
+     * Désenregistre les hooks utilisés par le module FNE.
+     *
+     * Les autres modules et leurs associations aux hooks ne sont
+     * pas concernés par cette opération.
+     *
+     * @return bool
+     *         True si le hook a été désenregistré avec succès,
+     *         false en cas d'échec.
+     */
+    // protected function uninstallHooks()
+    // {
+    //     return (bool) $this->module->unregisterHook('displayAdminOrder');
+    // }
+
+    // <<< FIN AJOUT POINT 22
 
     /**
      * Installe les structures de base de données nécessaires au module.
@@ -473,5 +543,18 @@ class FneInstaller
 
         return true;
     }
+
+    /**
+     * Crée les onglets du module sans réinstaller les autres composants.
+     *
+     * Cette méthode permet de compléter une installation existante.
+     *
+     * @return bool
+     */
+    public function ensureTabsInstalled()
+    {
+        return $this->installTabs();
+    }
+
 
 }

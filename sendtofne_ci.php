@@ -26,47 +26,70 @@ class Sendtofne_ci extends Module
     {
         $this->name = 'sendtofne_ci';
         $this->tab = 'administration';
-        $this->version = '1.1.0';
+        // $this->version = '1.1.0';
+        $this->version = '1.2.0';
         $this->author = 'Adamodial';
         parent::__construct();
         $this->displayName = 'FNE Côte d’Ivoire';
         $this->description = 'Envoi des factures et avoirs vers la FNE (DGI CI).';
     }
 
+    
     /**
      * Installe le module SendToFNE CI dans PrestaShop.
      *
-     * Effectue les opérations nécessaires à l'installation initiale
-     * du module :
+     * Exécute d'abord l'installation native du module, puis délègue
+     * les opérations spécifiques à la classe FneInstaller :
      *
-     * - exécute l'installation native du module via la méthode parente ;
-     * - enregistre le hook `displayAdminOrder` afin d'afficher les
-     *   éléments FNE sur la page de détail d'une commande ;
-     * - crée les éléments de base de données nécessaires au module ;
-     * - crée l'état de commande PrestaShop utilisé pour identifier
-     *   une facture ayant été envoyée avec succès vers la FNE.
+     * - création des structures de base de données ;
+     * - installation des configurations et états de commande FNE ;
+     * - création du Tab « Commandes FNE » ;
+     * - enregistrement des hooks utilisés par le module.
      *
-     * L'installation de l'état de commande utilisé après génération
-     * d'un avoir FNE est actuellement désactivée. Elle sera intégrée
-     * ultérieurement dans le mécanisme d'installation/migration
-     * du module.
-     *
-     * Chaque étape dépend de la réussite de la précédente grâce
-     * à l'opérateur logique `&&`. Si une étape échoue, les étapes
-     * suivantes ne sont pas exécutées et la méthode retourne `false`.
+     * Les opérations spécifiques sont centralisées dans FneInstaller
+     * afin d'éviter de maintenir plusieurs mécanismes d'installation.
      *
      * @return bool
-     *         True si toutes les opérations d'installation exécutées
-     *         ont réussi, false si l'une d'elles échoue.
+     *         True si toutes les opérations d'installation réussissent,
+     *         false si une étape échoue.
      */
     public function install()
     {
+        // >>> AJOUT POINT 22 — Chargement de l'installateur centralisé
+        require_once dirname(__FILE__) . '/classes/FneInstaller.php';
+
+        // Installation native PrestaShop, puis installation spécifique FNE.
         return parent::install()
-            && $this->registerHook('displayAdminOrder')
-            && $this->installDb()
-            && $this->installOrderState();
-            // && $this->installFneRefundOrderState();
+            && (new FneInstaller($this))->install();
+        // <<< FIN AJOUT POINT 22
     }
+
+    
+    // >>> AJOUT POINT 22 — Délégation de la désinstallation
+
+    /**
+     * Désinstalle le module SendToFNE CI.
+     *
+     * Délègue d'abord le nettoyage des éléments spécifiques du module
+     * à FneInstaller, puis exécute la désinstallation native
+     * de PrestaShop.
+     *
+     * L'historique FNE et les états de commande sont préservés
+     * conformément à la stratégie de conservation des données.
+     *
+     * @return bool
+     *         True si la désinstallation réussit,
+     *         false si une étape échoue.
+     */
+    public function uninstall()
+    {
+        require_once dirname(__FILE__) . '/classes/FneInstaller.php';
+
+        return (new FneInstaller($this))->uninstall()
+            && parent::uninstall();
+    }
+
+    // <<< FIN AJOUT POINT 22
 
     /**
      * Installe la structure de base de données du module.
