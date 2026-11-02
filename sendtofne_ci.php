@@ -250,15 +250,6 @@ class Sendtofne_ci extends Module
             AND response_code IN ("200","201")'
         );
 
-        $canRefund = (int)Db::getInstance()->getValue(
-            'SELECT COUNT(*)
-            FROM '._DB_PREFIX_.'fne_log
-            WHERE id_order='.(int)$idOrder.'
-            AND type="INVOICE"
-            AND response_code IN ("200","201")'
-        );
-
-
         $config = parse_ini_file( dirname(__FILE__).'/config/config.ini' );
 
         // >>> AJOUT POINT NCC
@@ -310,8 +301,6 @@ class Sendtofne_ci extends Module
             ),
             'fne_logs'          => $logs,
             'already_sent'      => ($alreadySent > 0),
-            // 'already_refunded'  => ($alreadyRefunded > 0),
-            'canRefund' => ($canRefund > 0),
             'already_refunded' => ($alreadyRefunded > 0),
 
             /*
@@ -331,39 +320,6 @@ class Sendtofne_ci extends Module
             . $this->display(__FILE__, 'views/templates/admin/button.tpl')
             . $this->display(__FILE__, 'views/templates/admin/history.tpl');
     }
-
-    /**
-     * Récupère les journaux FNE associés à une commande PrestaShop.
-     *
-     * La méthode interroge la table `fne_log` et retourne toutes
-     * les opérations FNE enregistrées pour la commande indiquée.
-     *
-     * Les journaux sont classés du plus récent au plus ancien
-     * selon leur date de création.
-     *
-     * Le journal peut notamment contenir les opérations relatives
-     * à l'émission d'une facture FNE (`INVOICE`) ou à la génération
-     * d'un avoir FNE (`REFUND`), ainsi que leurs réponses respectives.
-     *
-     * Cette méthode constitue une méthode d'accès aux données du
-     * journal FNE et ne modifie aucune donnée en base.
-     *
-     * @param int $idOrder
-     *        Identifiant de la commande PrestaShop.
-     *
-     * @return array
-     *         Tableau des journaux FNE associés à la commande.
-     */
-    public function getFneLogsForOrder($idOrder)
-    {
-        return Db::getInstance()->executeS(
-            'SELECT *
-            FROM '._DB_PREFIX_.'fne_log
-            WHERE id_order='.(int)$idOrder.'
-            ORDER BY created_at DESC'
-        );
-    }
-
 
 }
 ?>

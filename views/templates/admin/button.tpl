@@ -90,7 +90,7 @@
         Avoir : Déjà généré sur FNE
     </span>
 
-{elseif !$canRefund}
+{elseif !$already_sent}
     <span class="btn btn-default disabled">
         Avoir FNE indisponible
     </span>

@@ -224,13 +224,13 @@ Le rattachement entre les deux tables est donc réalisé au niveau applicatif et
 
 ### 6. Conservation et cycle de vie
 
-La table `ps_fne_log` est conservée lors de la désinstallation du module.
+La gestion du cycle de vie de la table `ps_fne_log` relève de la responsabilité de `FneInstaller`.
 
-La méthode `uninstall()` de `FneInstaller` ne supprime pas cette table ni son contenu.
+La méthode `uninstall()` de cette classe ne supprime ni la table `ps_fne_log` ni les enregistrements qu'elle contient.
 
-Les configurations persistantes et les états de commande spécifiques à FNE sont également conservés conformément à la stratégie de désinstallation retenue.
+Lors d'une nouvelle installation ou d'une réinstallation, le mécanisme d'installation doit vérifier l'existence des structures nécessaires afin d'éviter leur recréation inutile et de préserver les données historiques.
 
-Lors d'une réinstallation, le module doit pouvoir retrouver les structures et états déjà existants sans provoquer de doublons.
+Les règles fonctionnelles de conservation des données FNE et les décisions relatives à la désinstallation sont définies dans le document `01-REGLES_METIER.md`, section « Conservation des données et stratégie de désinstallation ».
 
 ### 7. Principe architectural
 

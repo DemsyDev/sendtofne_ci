@@ -91,6 +91,9 @@ class AdminFneRefundController extends ModuleAdminController
         }
 
         // >>> AJOUT POINT 9 : Vérification de l'état spécifique avant l'avoir FNE
+        /** * Lors d'une tentative d'avoir FNE, on vérifie l'existence de l'état "Envoyé vers FNE - Puis Avoir FNE : Annulée" sinon on la créé d'abord via $installer->ensureFneRefundOrderState().
+         * Un message d'alerte rouge s'affiche si on ne peut ni créer, ni vérifier l’état de commande dédié aux avoirs FNE et Aucun avoir n'est envoyé.
+         * On change l'état de la commande en "Envoyé vers FNE - Puis Avoir FNE : Annulée" après réussite de l'avoir FNE */
 
         require_once _PS_MODULE_DIR_.'sendtofne_ci/classes/FneInstaller.php';
 
