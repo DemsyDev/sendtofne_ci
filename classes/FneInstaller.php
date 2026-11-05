@@ -88,10 +88,18 @@ class FneInstaller
     /**
      * Supprime le Tab Back Office appartenant au module FNE.
      *
-     * Seul le Tab AdminFneInvoiceStates est supprimé.
+     * Seul le Tab 'AdminCommandesFne' est supprimé.
      * Le Tab parent AdminUnivpat et les autres Tabs, notamment
      * celui de la clôture de caisse, ne sont pas modifiés.
      *
+     * 
+     * Désinstalle l'onglet d'administration AdminCommandesFne.
+     * Les associations de ses rôles sont d'abord supprimées de ps_access
+     * afin d'éviter de conserver des enregistrements orphelins.
+     * 
+     * La suppression de l'onglet entraîne ensuite celle de ses rôles
+     * d'autorisation dans ps_authorization_role
+     * 
      * Si le Tab FNE n'existe déjà plus, l'opération est considérée
      * comme réussie.
      *
@@ -101,7 +109,8 @@ class FneInstaller
      */
     protected function uninstallTabs()
     {
-        $idTab = (int) Tab::getIdFromClassName('AdminFneInvoiceStates');
+        // $idTab = (int) Tab::getIdFromClassName('AdminFneInvoicestates');
+        $idTab = (int) Tab::getIdFromClassName('AdminCommandesFne');
 
         if (!$idTab) {
             return true;
@@ -110,6 +119,11 @@ class FneInstaller
         $tab = new Tab($idTab);
 
         if (!Validate::isLoadedObject($tab)) {
+            return false;
+        }
+
+        // Nettoyage des associations avant la suppression des rôles.
+        if (!$this->nettoyerAssociationsAutorisations()) {
             return false;
         }
 
@@ -230,7 +244,7 @@ class FneInstaller
             && $this->installFneRefundOrderState();
     }
 
-    /**
+     /**
      * Installe le Tab Back Office permettant d'accéder à la page
      * de suivi des commandes ayant fait l'objet d'une opération FNE.
      *
@@ -240,7 +254,7 @@ class FneInstaller
      *
      * Un seul Tab visible est créé :
      *
-     * - classe : `AdminFneInvoiceStates` ;
+     * - classe : `AdminCommandesFne` ;
      * - nom : `Commandes FNE` ;
      * - parent : `AdminUnivpat`.
      *
@@ -254,7 +268,7 @@ class FneInstaller
      * ne prenne la responsabilité d'installer des éléments
      * appartenant à une autre fonctionnalité.
      *
-     * Si le Tab `AdminFneInvoiceStates` existe déjà, aucune nouvelle
+     * Si le Tab `AdminCommandesFne` existe déjà, aucune nouvelle
      * création n'est effectuée.
      *
      * @return bool
@@ -276,7 +290,8 @@ class FneInstaller
             return false;
         }
 
-        $idTab = Tab::getIdFromClassName('AdminFneInvoiceStates');
+        // $idTab = Tab::getIdFromClassName('AdminFneInvoicestates');
+        $idTab = Tab::getIdFromClassName('AdminCommandesFne');
 
         if ($idTab) {
             return true;
@@ -286,7 +301,7 @@ class FneInstaller
 
         $tab->active = 1;
 
-        $tab->class_name = 'AdminFneInvoiceStates';
+        $tab->class_name = 'AdminCommandesFne';
 
         $tab->module = $this->module->name;
 
@@ -324,6 +339,86 @@ class FneInstaller
         }
 
         return true;
+    }
+
+    /**
+     * Supprime les associations des rôles d'autorisation de l'onglet
+     * 'AdminCommandesFne' dans la table ps_access.
+     *
+     * PrestaShop 1.7.8.11 supprime les rôles correspondants dans
+     * ps_authorization_role lors de la suppression d'un onglet avec
+     * Tab::delete(), mais ne supprime pas explicitement leurs associations
+     * dans ps_access.
+     *
+     * Cette méthode évite donc de conserver des associations orphelines.
+     *
+     * Seules les associations des quatre rôles de 'AdminCommandesFne'
+     * sont concernées. Les autorisations des autres onglets ne sont pas touchées.
+     *
+     * La méthode est idempotente : elle ne provoque pas d'erreur si aucune
+     * association correspondante n'existe déjà.
+     *
+     * @return bool True si le nettoyage est effectué ou inutile,
+     *              false en cas d'échec de la requête.
+     */
+    private function nettoyerAssociationsAutorisations()
+    {
+        // $nomsRoles = array(
+        //     'ROLE_MOD_TAB_ADMINFNEINVOICESTATES_CREATE',
+        //     'ROLE_MOD_TAB_ADMINFNEINVOICESTATES_READ',
+        //     'ROLE_MOD_TAB_ADMINFNEINVOICESTATES_UPDATE',
+        //     'ROLE_MOD_TAB_ADMINFNEINVOICESTATES_DELETE',
+        // );
+
+        $nomsRoles = array(
+            'ROLE_MOD_TAB_ADMINCOMMANDESFNE_CREATE',
+            'ROLE_MOD_TAB_ADMINCOMMANDESFNE_READ',
+            'ROLE_MOD_TAB_ADMINCOMMANDESFNE_UPDATE',
+            'ROLE_MOD_TAB_ADMINCOMMANDESFNE_DELETE',
+        );
+
+        $placeholders = array();
+
+        foreach ($nomsRoles as $nomRole) {
+            $placeholders[] = "'" . pSQL($nomRole) . "'";
+        }
+
+        // Récupération des identifiants des rôles concernés.
+        $roles = Db::getInstance()->executeS(
+            'SELECT id_authorization_role
+            FROM `' . _DB_PREFIX_ . 'authorization_role`
+            WHERE slug IN (' . implode(',', $placeholders) . ')'
+        );
+
+        // Une erreur SQL doit interrompre la désinstallation.
+        if ($roles === false) {
+            return false;
+        }
+
+        // Aucun rôle trouvé : il n'y a aucune association à nettoyer.
+        if (empty($roles)) {
+            return true;
+        }
+
+        $identifiantsRoles = array();
+
+        foreach ($roles as $role) {
+            $idRole = (int) $role['id_authorization_role'];
+
+            if ($idRole > 0) {
+                $identifiantsRoles[] = $idRole;
+            }
+        }
+
+        if (empty($identifiantsRoles)) {
+            return true;
+        }
+
+        // Suppression ciblée des associations dans ps_access.
+        return Db::getInstance()->delete(
+            'access',
+            'id_authorization_role IN (' . implode(',', $identifiantsRoles) . ')'
+        );
     }
 
     /**

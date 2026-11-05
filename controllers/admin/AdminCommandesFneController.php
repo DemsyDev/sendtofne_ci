@@ -4,8 +4,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once _PS_MODULE_DIR_
-    . 'sendtofne_ci/classes/FneInvoiceStatesService.php';
+require_once _PS_MODULE_DIR_. 'sendtofne_ci/classes/ServiceEtatsFacturesFne.php';
 
 /**
  * Page Back Office listant les commandes ayant une facture FNE réussie.
@@ -15,7 +14,7 @@ require_once _PS_MODULE_DIR_
  *
  * @author Adamodial
  */
-class AdminFneInvoiceStatesController extends ModuleAdminController
+class AdminCommandesFneController extends ModuleAdminController
 {
     /**
      * Initialise le contrôleur.
@@ -35,9 +34,9 @@ class AdminFneInvoiceStatesController extends ModuleAdminController
      */
     public function initContent()
     {
-        $service = new FneInvoiceStatesService();
+        $service = new ServiceEtatsFacturesFne();
 
-        $orders = $service->getOrdersWithSuccessfulFneInvoice();
+        $orders = $service->obtenirCommandesAvecFactureFneReussie();
 
         // Préparation des liens sécurisés vers les fiches de commande.
         foreach ($orders as &$order) {
@@ -54,13 +53,13 @@ class AdminFneInvoiceStatesController extends ModuleAdminController
         unset($order);
 
         $this->context->smarty->assign([
-            'fne_orders' => $orders,
-            'fne_orders_count' => count($orders),
+            'commandes_fne' => $orders,
+            'nombre_commandes_fne' => count($orders),
         ]);
 
         $templatePath = _PS_MODULE_DIR_
             . $this->module->name
-            . '/views/templates/admin/fne_invoice_states.tpl';
+            . '/views/templates/admin/commandes_fne.tpl';
 
         $this->content = $this->context->smarty->fetch($templatePath);
 

@@ -13,7 +13,7 @@ if (!defined('_PS_VERSION_')) {
  *
  * @author Adamodial
  */
-class FneInvoiceStatesService
+class ServiceEtatsFacturesFne
 {
     /**
      * Codes HTTP considérés comme des succès par l'intégration FNE.
@@ -36,7 +36,7 @@ class FneInvoiceStatesService
      *
      * @return array
      */
-    public function getOrdersWithSuccessfulFneInvoice()
+    public function obtenirCommandesAvecFactureFneReussie()
     {
         $sql = '
             SELECT

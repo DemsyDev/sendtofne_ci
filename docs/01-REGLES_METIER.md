@@ -143,7 +143,7 @@ La désinstallation supprime les éléments administratifs propres au module qui
 
 Il s'agit notamment de :
 
-- L'onglet Back-Office `AdminFneInvoiceStates` (Commandes FNE).
+- L'onglet Back-Office `AdminCommandesFne` (Commandes FNE).
 - Les éléments d'intégration administrative associés au module, conformément au mécanisme de désinstallation de PrestaShop.
 
 La désinstallation ne supprime pas la table `ps_fne_log`.

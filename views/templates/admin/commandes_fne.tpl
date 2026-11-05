@@ -5,7 +5,7 @@
         {l s='Commandes FNE' mod='sendtofne_ci'}
 
         <span class="badge">
-            {$fne_orders_count|intval}
+            {$nombre_commandes_fne|intval}
         </span>
     </div>
 
@@ -23,8 +23,8 @@
             </thead>
 
             <tbody>
-                {if $fne_orders}
-                    {foreach from=$fne_orders item=order}
+                {if $commandes_fne}
+                    {foreach from=$commandes_fne item=order}
                         <tr>
                             <td>
                                 <a
